@@ -15,4 +15,5 @@ public interface DoctorService {
 	public List<Doctor> fetchAllDoctors();
 	public Long getTotalDoctorCount();
 	public void deleteDoctor(Long id);
+	public Doctor findByEmail(String email);
 }

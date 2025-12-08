@@ -24,7 +24,6 @@ import com.klu.OnlineMedicalAppointment.service.PatientService;
 import com.klu.OnlineMedicalAppointment.service.PaymentService;
 
 @RestController
-@CrossOrigin(origins = {"https://sdp-java.vercel.app", "https://sdp2200030709.netlify.app"}, allowCredentials = "true")
 public class EPrescriptionController {
 
     @Autowired

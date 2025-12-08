@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.ResponseEntity;import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,6 +38,7 @@ import com.klu.OnlineMedicalAppointment.model.OrderMedicines;
 import com.klu.OnlineMedicalAppointment.model.Patient;
 import com.klu.OnlineMedicalAppointment.model.Payment;
 import com.klu.OnlineMedicalAppointment.model.Report;
+import com.klu.OnlineMedicalAppointment.security.JwtUtil;
 import com.klu.OnlineMedicalAppointment.service.AppointmentService;
 import com.klu.OnlineMedicalAppointment.service.DoctorService;
 import com.klu.OnlineMedicalAppointment.service.EPrescriptionService;
@@ -46,10 +47,7 @@ import com.klu.OnlineMedicalAppointment.service.PatientService;
 import com.klu.OnlineMedicalAppointment.service.PaymentService;
 import com.klu.OnlineMedicalAppointment.service.ReportService;
 
-import jakarta.servlet.http.HttpSession;
-
 @RestController
-@CrossOrigin(origins = {"https://sdp-java.vercel.app", "https://sdp2200030709.netlify.app"}, allowCredentials = "true")
 public class PatientController {
 	
 	@Autowired
@@ -73,6 +71,8 @@ public class PatientController {
     @Autowired
     private OrderMedicinesService orderMedicinesService;
 
+    @Autowired
+    private JwtUtil jwtUtil;
    
     
     @PostMapping(value = "/patientRegistration", consumes = {"multipart/form-data"})
@@ -121,82 +121,105 @@ public class PatientController {
     }
 
     @GetMapping("/patientLoginSession")
-    public ResponseEntity<Patient> checkSession(HttpSession session) {
-        Patient patientSession = (Patient) session.getAttribute("patient");
-        if (patientSession != null) {
-        	session.setMaxInactiveInterval(30*10);
-            return ResponseEntity.ok(patientSession);
-        }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
-    }
-    
-    @PostMapping("/patientLogin")
-    public ResponseEntity<Patient> login(@RequestBody Map<String, String> patientLoginData, HttpSession session) {
-    	
-    	
-    	String email = patientLoginData.get("email");
-        String password = patientLoginData.get("password");
-        Patient patient = patientService.checkPatientLogin(email, password);
+    public ResponseEntity<Patient> checkSession() {
 
-        if (patient!=null && patient.getPassword().equals(password) && patient.getEmail().equals(email)) {
-            session.setAttribute("patient", patient);
-            session.setAttribute("patientEmail", patient.getEmail()); 
-            return ResponseEntity.ok(patient); 
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null); 
-    }
-    
-    @GetMapping("/getPatientDetails")
-    public ResponseEntity<Patient> getPatientDetails(HttpSession session) {
-    	session.setMaxInactiveInterval(30*10);
-        Patient patient = (Patient) session.getAttribute("patient");
+        Patient patient = patientService.findByEmail(email);
         if (patient == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null); 
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
+
         return ResponseEntity.ok(patient);
     }
 
-    @PutMapping(value = "/updatePatientProfile", consumes = "multipart/form-data")
-    public ResponseEntity<String> updatePatientProfile(
-            @RequestParam("firstName") String firstName,
-            @RequestParam("lastName") String lastName,
-            @RequestParam("dateOfBirth") String dateOfBirth,
-            @RequestParam("gender") String gender,
-            @RequestParam("contactNumber") String contactNumber,
-            @RequestParam("email") String email,
-            @RequestParam("address") String address,
-            @RequestParam(value = "profileImage", required = false) MultipartFile profileImage,
-            HttpSession session) {
+    
+    @PostMapping("/patientLogin")
+    public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> login) {
+        String email = login.get("email");
+        String password = login.get("password");
 
-        Patient patient = (Patient) session.getAttribute("patient");
+        Patient patient = patientService.checkPatientLogin(email, password);
 
         if (patient == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Please log in to update your profile.");
+            return ResponseEntity.status(401).body(null);
         }
 
-        try {
-            patient.setFirstName(firstName);
-            patient.setLastName(lastName);
-            patient.setDateOfBirth(LocalDate.parse(dateOfBirth));
-            patient.setGender(gender);
-            patient.setContactNumber(contactNumber);
-            patient.setEmail(email);
-            patient.setAddress(address);
+        String token = jwtUtil.generateToken(email);
 
-            if (profileImage != null && !profileImage.isEmpty()) {
-                byte[] profileImageBytes = profileImage.getBytes();
-                patient.setProfileImage(profileImageBytes); 
-            }
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("patient", patient);
 
-            patientService.updatePatientProfile(patient.getId(), patient);
-            session.setAttribute("patient", patient); 
-
-            return ResponseEntity.ok("Profile updated successfully.");
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload profile image.");
-        }
+        return ResponseEntity.ok(response);
     }
+    
+    @GetMapping("/getPatientDetails")
+    public ResponseEntity<Patient> getPatientDetails() {
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+
+        Patient patient = patientService.findByEmail(email);
+
+        if (patient == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+
+        return ResponseEntity.ok(patient);
+    }
+
+
+    @PutMapping(value = "/updatePatientProfile", consumes = "multipart/form-data")
+	public ResponseEntity<String> updatePatientProfile(
+	        @RequestParam("firstName") String firstName,
+	        @RequestParam("lastName") String lastName,
+	        @RequestParam("dateOfBirth") String dateOfBirth,
+	        @RequestParam("gender") String gender,
+	        @RequestParam("contactNumber") String contactNumber,
+	        @RequestParam("email") String updatedEmail,
+	        @RequestParam("address") String address,
+	        @RequestParam(value = "profileImage", required = false) MultipartFile profileImage) {
+	
+	    String loggedInEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+	
+	    if (loggedInEmail == null) {
+	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+	    }
+	
+	    Patient patient = patientService.findByEmail(loggedInEmail);
+	
+	    if (patient == null) {
+	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+	    }
+	
+	    try {
+	        patient.setFirstName(firstName);
+	        patient.setLastName(lastName);
+	        patient.setDateOfBirth(LocalDate.parse(dateOfBirth));
+	        patient.setGender(gender);
+	        patient.setContactNumber(contactNumber);
+	        patient.setEmail(updatedEmail);
+	        patient.setAddress(address);
+	
+	        if (profileImage != null && !profileImage.isEmpty()) {
+	            patient.setProfileImage(profileImage.getBytes());
+	        }
+	
+	        patientService.updatePatientProfile(patient.getId(), patient);
+	
+	        return ResponseEntity.ok("Profile updated successfully.");
+	    } catch (IOException e) {
+	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload profile image.");
+	    }
+	}
+
     
     @GetMapping("/profile/{id}/image")
     public ResponseEntity<byte[]> getPatientImage(@PathVariable Long id)
@@ -207,27 +230,40 @@ public class PatientController {
     }
     
     @GetMapping("/getappointments/{id}")
-    public ResponseEntity<List<Appointment>> getPatientAppointment(@PathVariable Long id)
-    {
-    	Patient patient=patientService.getImage(id);
-    	List<Appointment> appointments=appointmentService.getPatientAppointments(patient);
-    	if(appointments!=null)
-    	{
-    		return ResponseEntity.ok(appointments);
-    	}
-		return null;
-    	
+    public ResponseEntity<List<Appointment>> getPatientAppointment(@PathVariable Long id) {
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (email == null || email.equals("anonymousUser")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+
+        Patient loggedInPatient = patientService.findByEmail(email);
+        if (loggedInPatient == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+
+        if (!loggedInPatient.getId().equals(id)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(null);
+        }
+
+        List<Appointment> appointments = appointmentService.getPatientAppointments(loggedInPatient);
+        return ResponseEntity.ok(appointments);
     }
+
     
     @GetMapping("/getOrdersbyPatient")
-    public ResponseEntity<List<OrderMedicines>> getAllOrders(HttpSession session) 
-    {
-        Patient patient = (Patient) session.getAttribute("patient");
+    public ResponseEntity<List<OrderMedicines>> getAllOrders() {
 
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (email == null || email.equals("anonymousUser")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+
+        Patient patient = patientService.findByEmail(email);
         if (patient == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
-       
+
         List<Appointment> appointments = appointmentService.getPatientAppointments(patient);
 
         List<OrderMedicines> orderMedicines = new ArrayList<>();
@@ -237,13 +273,14 @@ public class PatientController {
                 orderMedicines.add(order);
             }
         }
+
         return ResponseEntity.ok(orderMedicines);
     }
 
+
     
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(HttpSession session) {
-        session.invalidate();
+    public ResponseEntity<String> logout() {
         return ResponseEntity.ok("Logged out successfully.");
     }
 
@@ -284,39 +321,63 @@ public class PatientController {
     }
     
     @GetMapping("/getPatientBillings")
-    public ResponseEntity<List<Payment>> appointmentBilling(HttpSession session)
-    {
-    	Patient patient = (Patient) session.getAttribute("patient");
-    	List<Appointment> appointments=appointmentService.getPatientAppointments(patient);
-    	
-    	List<Long> incompleteAppointmentIds = appointments.stream().map(Appointment::getId).collect(Collectors.toList());
-    	
-    	List<Payment> payments = paymentService.getAppointmentDues(incompleteAppointmentIds);
-    	
-    	List<Payment> filteredPayments = payments.stream()
-    		    .filter(payment -> payment.getType() == 0)
-    		    .collect(Collectors.toList());
+    public ResponseEntity<List<Payment>> getPatientBillings() {
 
-		return ResponseEntity.ok(filteredPayments);
-	}
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (email == null || email.equals("anonymousUser")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+
+        Patient patient = patientService.findByEmail(email);
+        if (patient == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
+
+        List<Appointment> appointments = appointmentService.getPatientAppointments(patient);
+
+        List<Long> appointmentIds = appointments.stream()
+                .map(Appointment::getId)
+                .collect(Collectors.toList());
+
+        List<Payment> payments = paymentService.getAppointmentDues(appointmentIds);
+
+        List<Payment> filteredPayments = payments.stream()
+                .filter(p -> p.getType() == 0)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(filteredPayments);
+    }
+
     
     
     @GetMapping("/getPatientBillingsEprescription")
-    public ResponseEntity<List<Payment>> getEprescriptionBilling(HttpSession session) {
-        Patient patient = (Patient) session.getAttribute("patient");
-        if (patient == null) {
-            return ResponseEntity.status(401).build(); 
-        }      
-        List<Appointment> appointments = appointmentService.getPatientAppointments(patient);
-        List<Long> incompleteAppointmentIds = appointments.stream().map(Appointment::getId).collect(Collectors.toList());
+    public ResponseEntity<List<Payment>> getEprescriptionBilling() {
 
-        if (incompleteAppointmentIds.isEmpty()) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (email == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Patient patient = patientService.findByEmail(email);
+        if (patient == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        List<Appointment> appointments = appointmentService.getPatientAppointments(patient);
+        List<Long> appointmentIds = appointments.stream()
+                .map(Appointment::getId)
+                .collect(Collectors.toList());
+
+        if (appointmentIds.isEmpty()) {
             return ResponseEntity.ok(List.of());
         }
-        List<Payment> ePrescriptionPayments = paymentService.getEprescriptionPaymentsByAppointmentIds(incompleteAppointmentIds);
+
+        List<Payment> ePrescriptionPayments =
+                paymentService.getEprescriptionPaymentsByAppointmentIds(appointmentIds);
 
         return ResponseEntity.ok(ePrescriptionPayments);
     }
+
     
     
     
@@ -411,9 +472,15 @@ public class PatientController {
 	
 	
 	@GetMapping("/viewPatientMedicalReportbyPatient/{appointmentId}/{doctorId}")
-	public ResponseEntity<byte[]> viewPatientMedicalReport(@PathVariable Long appointmentId,@PathVariable Long doctorId, HttpSession session)
+	public ResponseEntity<byte[]> viewPatientMedicalReport(@PathVariable Long appointmentId,@PathVariable Long doctorId)
 	{
-	    Patient patient = (Patient) session.getAttribute("patient");
+		String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (email == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Patient patient = patientService.findByEmail(email);
+       
 	    if (patient == null)
 	    {
 	        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);  

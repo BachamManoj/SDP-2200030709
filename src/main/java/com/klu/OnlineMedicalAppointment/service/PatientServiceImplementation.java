@@ -1,6 +1,7 @@
 package com.klu.OnlineMedicalAppointment.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -65,6 +66,15 @@ public class PatientServiceImplementation implements PatientService {
 	public void deletePatient(Long Id) {
 		patientRepository.deleteById(Id);
 		
+	}
+
+	@Override
+	public Patient findByEmail(String email) {
+		// TODO Auto-generated method stub
+		
+		Optional<Patient> patientObj = patientRepository.findByEmail(email);
+
+	    return patientObj.orElse(null);
 	}
 
 	

@@ -14,4 +14,5 @@ public interface PatientService {
 	public Long getTotalPatientCount();
 	public List<Patient> getAllPatients();
 	public void deletePatient(Long Id);
+	public Patient findByEmail(String email);
 }

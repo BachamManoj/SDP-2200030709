@@ -1,6 +1,7 @@
 package com.klu.OnlineMedicalAppointment.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -79,6 +80,13 @@ public class DoctorServiceImplementation implements DoctorService{
 	public void deleteDoctor(Long id) {
 		doctorRepository.deleteById(id);
 		
+	}
+
+	@Override
+	public Doctor findByEmail(String email) {
+		Optional<Doctor> doctor = doctorRepository.findByEmail(email);
+		
+		return doctor.orElse(null);
 	}	
 
 }

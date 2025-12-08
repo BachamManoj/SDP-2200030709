@@ -56,7 +56,7 @@ public class Patient {
 
     public Patient() {}
 
-    public Patient(String firstName, String lastName, LocalDate dateOfBirth, String gender, String contactNumber, String email, String password, String address) {
+    public Patient(String firstName, String lastName, LocalDate dateOfBirth, String gender, String contactNumber, String email, String password, String address,byte[] profileImage) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.dateOfBirth = dateOfBirth;
@@ -65,6 +65,7 @@ public class Patient {
         this.email = email;
         this.password = password;
         this.address = address;
+        this.profileImage = profileImage;
     }
 
     public Long getId() {

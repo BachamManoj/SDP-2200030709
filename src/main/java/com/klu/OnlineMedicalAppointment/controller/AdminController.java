@@ -48,20 +48,26 @@ public class AdminController {
 	private PharmacistService pharmacistService;
 	
 	@PostMapping("/adminLogin")
-    public ResponseEntity<Admin> login(@RequestBody Map<String, String> admin, HttpSession session) {
+    public ResponseEntity<?> login(@RequestBody Map<String, String> admin, HttpSession session) {
     	
     	
-    	String email = admin.get("email");
+		String email = admin.get("email");
         String password = admin.get("password");
+
         Admin admin2 = adminService.checkLogin(email, password);
 
-        if (admin!=null && admin2.getPassword().equals(password) && admin2.getEmail().equals(email)) {
-            session.setAttribute("admin", admin2);
-            session.setAttribute("adminEmail", admin2.getEmail()); 
-            return ResponseEntity.ok(admin2); 
+        if (admin2 == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
         }
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null); 
+        if (!admin2.getPassword().equals(password)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+        }
+
+        session.setAttribute("admin", admin2);
+        session.setAttribute("adminEmail", admin2.getEmail());
+
+        return ResponseEntity.ok(admin2);
     }
 	
 	

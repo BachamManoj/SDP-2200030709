@@ -1,11 +1,14 @@
 package com.klu.OnlineMedicalAppointment.controller;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +20,7 @@ import com.klu.OnlineMedicalAppointment.model.Medicine;
 import com.klu.OnlineMedicalAppointment.model.OrderMedicines;
 import com.klu.OnlineMedicalAppointment.model.Payment;
 import com.klu.OnlineMedicalAppointment.model.Pharmacist;
+import com.klu.OnlineMedicalAppointment.security.JwtUtil;
 import com.klu.OnlineMedicalAppointment.service.EPrescriptionService;
 import com.klu.OnlineMedicalAppointment.service.MedicineService;
 import com.klu.OnlineMedicalAppointment.service.OrderMedicinesService;
@@ -42,6 +46,9 @@ public class PharmacistController {
 	
 	@Autowired
 	private MedicineService medicineService;
+	
+	@Autowired
+	private JwtUtil jwtUtil;
 	
 	
 	@PostMapping("/acceptOrder/{id}")
@@ -80,38 +87,67 @@ public class PharmacistController {
     }
 
     @PostMapping("/Pharmacistlogin")
-    public ResponseEntity<String> login(@RequestBody Pharmacist loginRequest,HttpSession session) {
-        Pharmacist pharmacist = pharmacistService.findPharmacistByEmail(loginRequest.getEmail());
-        if (pharmacist != null && pharmacist.getPassword().equals(loginRequest.getPassword())) {
-        	session.setAttribute("pharmacist", pharmacist);
-            return ResponseEntity.ok("Login successful!");
-        } else {
-            return ResponseEntity.status(401).body("Invalid email or password");
+    public ResponseEntity<?> pharmacistLogin(@RequestBody Pharmacist loginRequest) {
+
+        String email = loginRequest.getEmail();
+        String password = loginRequest.getPassword();
+
+        Pharmacist pharmacist = pharmacistService.findPharmacistByEmail(email);
+
+        if (pharmacist == null || !pharmacist.getPassword().equals(password)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                 .body("Invalid email or password");
         }
+
+        // Generate JWT Token
+        String token = jwtUtil.generateToken(email);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("pharmacist", pharmacist);
+
+        return ResponseEntity.ok(response);
     }
+
     
     @PostMapping("/Pharmacistlogout")
-    public ResponseEntity<String> logout(HttpSession session) {
-        session.invalidate();
+    public ResponseEntity<String> logout() {
+        
         return ResponseEntity.ok("Logged out successfully.");
     }
     
     @GetMapping("/getAllOrders")
-    public ResponseEntity<List<OrderMedicines>> getAllOrders(HttpSession session)
-    {
-    	Pharmacist pharmacist = (Pharmacist) session.getAttribute("pharmacist");
-    	if(pharmacist!=null)
-    	{
-    		List<OrderMedicines> orders = orderMedicinesService.getAllOrders();
-            return ResponseEntity.ok(orders);
-    	}
-		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+    public ResponseEntity<?> getAllOrders() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        if (email == null || email.equals("anonymousUser")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+
+        Pharmacist pharmacist = pharmacistService.findPharmacistByEmail(email);
+        if (pharmacist == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+
+        List<OrderMedicines> orders = orderMedicinesService.getAllOrders();
+        return ResponseEntity.ok(orders);
     }
+
     
-    @GetMapping("/getPriceOfOrder/{id}")
-    public ResponseEntity<Double> getPrice(@PathVariable Long id, HttpSession session)
+	@GetMapping("/getPriceOfOrder/{id}")
+    public ResponseEntity<?> getPrice(@PathVariable Long id)
     {
-    	Pharmacist pharmacist = (Pharmacist) session.getAttribute("pharmacist");
+    	String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        if (email == null || email.equals("anonymousUser")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+
+        Pharmacist pharmacist = pharmacistService.findPharmacistByEmail(email);
+        if (pharmacist == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Unauthorized");
+        }
+
     	if(pharmacist!=null)
     	{
     		Payment payment= paymentService.getPrice(id);

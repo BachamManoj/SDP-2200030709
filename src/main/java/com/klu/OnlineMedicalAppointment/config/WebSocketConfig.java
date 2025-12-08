@@ -19,7 +19,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("https://sdp-java.vercel.app","https://sdp2200030709.netlify.app") // Replace "*" with actual frontend URL in production
+                .setAllowedOriginPatterns("https://sdp-java.vercel.app","http://localhost:3000","https://sdp2200030709.netlify.app") // Replace "*" with actual frontend URL in production
                 .withSockJS();
     }
 }

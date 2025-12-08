@@ -22,7 +22,6 @@ import com.klu.OnlineMedicalAppointment.model.Medicine;
 import com.klu.OnlineMedicalAppointment.service.MedicineService;
 
 @RestController
-@CrossOrigin(origins = {"https://sdp-java.vercel.app", "https://sdp2200030709.netlify.app"}, allowCredentials = "true")
 public class MedicineController {
 	@Autowired
     private MedicineService medicineService;

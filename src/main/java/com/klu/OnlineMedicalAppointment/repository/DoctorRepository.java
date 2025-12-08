@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.klu.OnlineMedicalAppointment.model.Doctor;
+import com.klu.OnlineMedicalAppointment.model.Patient;
 
 @Repository
 public interface DoctorRepository extends JpaRepository<Doctor, Long>{
@@ -17,4 +18,5 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long>{
 	Optional<Doctor> findById(Long id);
 	@Query("SELECT COUNT(p) FROM Doctor p")
 	long getTotalDoctorCount();
+	Optional<Doctor> findByEmail(String email);
 }

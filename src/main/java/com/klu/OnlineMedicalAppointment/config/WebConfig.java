@@ -15,7 +15,7 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOrigins("https://sdp2200030709.netlify.app","https://sdp-java.vercel.app") // Allow your React app’s origin
+                        .allowedOrigins("http://localhost:3000") // Allow your React app’s origin
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Allow necessary methods
                         .allowedHeaders("*")
                         .allowCredentials(true);
