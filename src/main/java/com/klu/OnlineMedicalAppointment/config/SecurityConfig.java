@@ -47,7 +47,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(List.of("http://localhost:3000","https://sdp-java-myc2ji0ww-manojs-projects-cb9c59bb.vercel.app/"));
+        cfg.setAllowedOrigins(List.of("http://localhost:3000","https://sdp-java-myc2ji0ww-manojs-projects-cb9c59bb.vercel.app/"
+                                     "https://sdp-java.vercel.app"));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setExposedHeaders(List.of("Authorization"));
